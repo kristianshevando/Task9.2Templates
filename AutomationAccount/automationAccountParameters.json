@@ -1,0 +1,26 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "accountName": {
+        "value": "kristianAutomationAccount"
+      },
+      "jobId": {
+        "value": "816ebeaa-8093-4d1d-9e16-5791a427287c"
+      },
+      "credentialName": {
+        "value": "kristianCredential"
+      },
+      "userName": {
+        "value": "03104f84-c022-4a75-90ab-8bdf29e84bb7"
+      },
+      "password": {
+        "reference": {
+          "keyVault":  {
+              "id":  "/subscriptions/ae8ab787-c66f-4733-aed2-228ab3e8523b/resourceGroups/KristianRG2/providers/Microsoft.KeyVault/vaults/kristianVault2"
+          },
+          "secretName": "applicationPassword"
+        }
+      }
+    }
+  }
