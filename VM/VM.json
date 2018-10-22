@@ -1,222 +1,242 @@
 {
-    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "location": {
-            "type": "string"
-        },
-        "networkInterfaceName": {
-            "type": "string"
-        },
-        "networkSecurityGroupName": {
-            "type": "string"
-        },
-        "networkSecurityGroupRules": {
-            "type": "array"
-        },
-        "virtualNetworkName": {
-            "type": "string"
-        },
-        "addressPrefix": {
-            "type": "string"
-        },
-        "subnetName": {
-            "type": "string"
-        },
-        "subnetPrefix": {
-            "type": "string"
-        },
-        "publicIpAddressName": {
-            "type": "string"
-        },
-        "publicIpAddressType": {
-            "type": "string"
-        },
-        "publicIpAddressSku": {
-            "type": "string"
-        },
-        "virtualMachineName": {
-            "type": "string"
-        },
-        "virtualMachineRG": {
-            "type": "string"
-        },
-        "osDiskType": {
-            "type": "string"
-        },
-        "virtualMachineSize": {
-            "type": "string"
-        },
-        "adminUsername": {
-            "type": "string"
-        },
-        "adminPassword": {
-            "type": "securestring"
-        },
-        "diagnosticsStorageAccountName": {
-            "type": "string"
-        },
-        "diagnosticsStorageAccountId": {
-            "type": "string"
-        },
-        "diagnosticsStorageAccountType": {
-            "type": "string"
-        },
-        "diagnosticsStorageAccountKind": {
-            "type": "string"
-        }
+      "adminUsername": {
+        "type": "string"
+      },
+      "adminPassword": {
+        "type": "securestring",
+      },
+      "automationAccountKey": {
+        "type": "securestring"
+      },
+      "automationAccountUrl": {
+        "type": "securestring"
+      }
     },
     "variables": {
-        "nsgId": "[resourceId(resourceGroup().name, 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]",
-        "vnetId": "[resourceId(resourceGroup().name,'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
-        "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+      "vnet_name": "[concat('vnet_',resourceGroup().name)]",
+      "vnet_pref": "10.10.0.0/16",
+      "subnet_name": "KristianSubnet1",
+      "subnet_pref": "10.10.0.0/24",
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnet_name'),  variables('subnet_name'))]",
+      "vm_pref": "KristianVM",
+      "res_count": 2,
+      "dnsPrefixForPublicIP": "[uniqueString(resourceGroup().id)]",
+      "configurationMode": "ApplyAndMonitor",
+      "nodeConfigurationName": "",
+      "configurationModeFrequencyMins": 15,
+      "refreshFrequencyMins": 30,
+      "rebootNodeIfNeeded": true,
+      "actionAfterReboot": "ContinueConfiguration",
+      "allowModuleOverwrite": false,
+      "timestamp": "MM/dd/yyyy H:mm:ss tt"
     },
     "resources": [
-        {
-            "name": "[parameters('networkInterfaceName')]",
-            "type": "Microsoft.Network/networkInterfaces",
-            "apiVersion": "2018-04-01",
-            "location": "[parameters('location')]",
-            "dependsOn": [
-                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]",
-                "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
-                "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'))]"
-            ],
-            "properties": {
-                "ipConfigurations": [
-                    {
-                        "name": "ipconfig1",
-                        "properties": {
-                            "subnet": {
-                                "id": "[variables('subnetRef')]"
-                            },
-                            "privateIPAllocationMethod": "Dynamic",
-                            "publicIpAddress": {
-                                "id": "[resourceId(resourceGroup().name, 'Microsoft.Network/publicIpAddresses', parameters('publicIpAddressName'))]"
-                            }
-                        }
-                    }
-                ],
-                "networkSecurityGroup": {
-                    "id": "[variables('nsgId')]"
-                }
-            },
-            "tags": {}
+      {
+        "apiVersion": "2016-03-30",
+        "type": "Microsoft.Network/publicIPAddresses",
+        "name": "[concat(variables('vm_pref'), copyIndex(1))]",
+        "location": "[resourceGroup().location]",
+        "copy": {
+          "name": "PIPCopy",
+          "count": "[variables('res_count')]"
         },
-        {
-            "name": "[parameters('networkSecurityGroupName')]",
-            "type": "Microsoft.Network/networkSecurityGroups",
-            "apiVersion": "2018-08-01",
-            "location": "[parameters('location')]",
-            "properties": {
-                "securityRules": "[parameters('networkSecurityGroupRules')]"
-            },
-            "tags": {}
-        },
-        {
-            "name": "[parameters('virtualNetworkName')]",
-            "type": "Microsoft.Network/virtualNetworks",
-            "apiVersion": "2018-08-01",
-            "location": "[parameters('location')]",
-            "properties": {
-                "addressSpace": {
-                    "addressPrefixes": [
-                        "[parameters('addressPrefix')]"
-                    ]
-                },
-                "subnets": [
-                    {
-                        "name": "[parameters('subnetName')]",
-                        "properties": {
-                            "addressPrefix": "[parameters('subnetPrefix')]"
-                        }
-                    }
-                ]
-            },
-            "tags": {}
-        },
-        {
-            "name": "[parameters('publicIpAddressName')]",
-            "type": "Microsoft.Network/publicIpAddresses",
-            "apiVersion": "2018-08-01",
-            "location": "[parameters('location')]",
-            "properties": {
-                "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
-            },
-            "sku": {
-                "name": "[parameters('publicIpAddressSku')]"
-            },
-            "tags": {}
-        },
-        {
-            "name": "[parameters('virtualMachineName')]",
-            "type": "Microsoft.Compute/virtualMachines",
-            "apiVersion": "2018-04-01",
-            "location": "[parameters('location')]",
-            "dependsOn": [
-                "[concat('Microsoft.Network/networkInterfaces/', parameters('networkInterfaceName'))]",
-                "[concat('Microsoft.Storage/storageAccounts/', parameters('diagnosticsStorageAccountName'))]"
-            ],
-            "properties": {
-                "hardwareProfile": {
-                    "vmSize": "[parameters('virtualMachineSize')]"
-                },
-                "storageProfile": {
-                    "osDisk": {
-                        "createOption": "fromImage",
-                        "managedDisk": {
-                            "storageAccountType": "[parameters('osDiskType')]"
-                        }
-                    },
-                    "imageReference": {
-                        "publisher": "MicrosoftWindowsServer",
-                        "offer": "WindowsServer",
-                        "sku": "2016-Datacenter",
-                        "version": "latest"
-                    }
-                },
-                "networkProfile": {
-                    "networkInterfaces": [
-                        {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaceName'))]"
-                        }
-                    ]
-                },
-                "osProfile": {
-                    "computerName": "[parameters('virtualMachineName')]",
-                    "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]",
-                    "windowsConfiguration": {
-                        "enableAutomaticUpdates": true,
-                        "provisionVmAgent": true
-                    }
-                },
-                "diagnosticsProfile": {
-                    "bootDiagnostics": {
-                        "enabled": true,
-                        "storageUri": "[concat('https://', parameters('diagnosticsStorageAccountName'), '.blob.core.windows.net/')]"
-                    }
-                }
-            },
-            "tags": {}
-        },
-        {
-            "name": "[parameters('diagnosticsStorageAccountName')]",
-            "type": "Microsoft.Storage/storageAccounts",
-            "apiVersion": "2018-07-01",
-            "location": "[parameters('location')]",
-            "properties": {},
-            "kind": "[parameters('diagnosticsStorageAccountKind')]",
-            "sku": {
-                "name": "[parameters('diagnosticsStorageAccountType')]"
-            },
-            "tags": {}
+        "properties": {
+          "publicIPAllocationMethod": "Dynamic",
+          "dnsSettings": {
+            "domainNameLabel": "[concat(variables('dnsPrefixForPublicIP'), copyIndex(1))]"
+          }
         }
-    ],
-    "outputs": {
-        "adminUsername": {
-            "type": "string",
-            "value": "[parameters('adminUsername')]"
+      },
+      {
+        "name": "[variables('vnet_name')]",
+        "type": "Microsoft.Network/virtualNetworks",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2016-03-30",
+        "dependsOn": [],
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[variables('vnet_pref')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[variables('subnet_name')]",
+              "properties": {
+                "addressPrefix": "[variables('subnet_pref')]"
+              }
+            }
+          ]
         }
-    }
-}
+      },
+      {
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[concat(variables('vm_pref'), copyIndex(1))]",
+        "apiVersion": "2016-03-30",
+        "location": "[resourceGroup().location]",
+        "copy": {
+          "name": "NICCopy",
+          "count": "[variables('res_count')]"
+        },
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "publicIPAddress": {
+                  "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('vm_pref'), copyIndex(1)))]"
+                },
+                "subnet": {
+                  "id": "[variables('subnetRef')]"
+                }
+              }
+            }
+          ],
+          "dnsSettings": {
+            "dnsServers": []
+          },
+          "enableIPForwarding": false
+        },
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('vm_pref'), copyIndex(1)))]",
+          "[resourceId('Microsoft.Network/virtualNetworks/', variables('vnet_name'))]"
+        ]
+      },
+      {
+        "type": "Microsoft.Compute/virtualMachines",
+        "name": "[concat(variables('vm_pref'), copyIndex(1))]",
+        "apiVersion": "2017-03-30",
+        "location": "[resourceGroup().location]",
+        "copy": {
+          "name": "VMcopy",
+          "count": "[variables('res_count')]"
+        },
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "Standard_DS1_v2"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "MicrosoftWindowsServer",
+              "offer": "WindowsServer",
+              "sku": "2012-R2-Datacenter",
+              "version": "latest"
+            },
+            "osDisk": {
+              "name": "[concat(variables('vm_pref'),copyIndex(1))]",
+              "createOption": "FromImage",
+              "managedDisk": {
+                "storageAccountType": "Premium_LRS"
+              },
+              "caching": "ReadWrite"
+            }
+          },
+          "osProfile": {
+            "computerName": "[concat(variables('vm_pref'),copyIndex(1))]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "windowsConfiguration": {
+              "provisionVMAgent": true
+            },
+            "secrets": [],
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('vm_pref'), copyIndex(1)))]"
+              }
+            ]
+          }
+        },
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('vm_pref'), copyIndex(1)))]"
+        ]
+      },
+      {
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "name": "[concat(variables('vm_pref'), copyIndex(1),'/Microsoft.Powershell.DSC')]",
+        "copy": {
+          "name": "DSCcopy",
+          "count": "[variables('res_count')]"
+        },
+        "dependsOn": [
+          "[concat(variables('vm_pref'), copyIndex(1))]"
+        ],
+        "apiVersion": "2015-06-15",
+        "location": "[resourceGroup().location]",
+        "properties": {
+          "publisher": "Microsoft.Powershell",
+          "type": "DSC",
+          "typeHandlerVersion": "2.19",
+          "autoUpgradeMinorVersion": true,
+          "protectedSettings": {
+            "Items": {
+              "registrationKeyPrivate": "[parameters('automationAccountKey')]"
+            }
+          },
+          "settings": {
+            "ConfigurationFunction": "",
+            "Properties": [
+              {
+                "Name": "RegistrationKey",
+                "Value": {
+                  "UserName": "PLACEHOLDER_DONOTUSE",
+                  "Password": "PrivateSettingsRef:registrationKeyPrivate"
+                },
+                "TypeName": "System.Management.Automation.PSCredential"
+              },
+              {
+                "Name": "RegistrationUrl",
+                "Value": "[parameters('automationAccountUrl')]",
+                "TypeName": "System.String"
+              },
+              {
+                "Name": "NodeConfigurationName",
+                "Value": "[variables('nodeConfigurationName')]",
+                "TypeName": "System.String"
+              },
+              {
+                "Name": "ConfigurationMode",
+                "Value": "[variables('configurationMode')]",
+                "TypeName": "System.String"
+              },
+              {
+                "Name": "ConfigurationModeFrequencyMins",
+                "Value": "[variables('configurationModeFrequencyMins')]",
+                "TypeName": "System.Int32"
+              },
+              {
+                "Name": "RefreshFrequencyMins",
+                "Value": "[variables('refreshFrequencyMins')]",
+                "TypeName": "System.Int32"
+              },
+              {
+                "Name": "RebootNodeIfNeeded",
+                "Value": "[variables('rebootNodeIfNeeded')]",
+                "TypeName": "System.Boolean"
+              },
+              {
+                "Name": "ActionAfterReboot",
+                "Value": "[variables('actionAfterReboot')]",
+                "TypeName": "System.String"
+              },
+              {
+                "Name": "AllowModuleOverwrite",
+                "Value": "[variables('allowModuleOverwrite')]",
+                "TypeName": "System.Boolean"
+              },
+              {
+                "Name": "Timestamp",
+                "Value": "[variables('timestamp')]",
+                "TypeName": "System.String"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
